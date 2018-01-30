@@ -45,3 +45,6 @@ source /root/keystonercv3
 # Create network
 network_id=`openstack network create $1"_net" | grep " id"| awk {'print $4'}`
 openstack subnet create --network $1"_net" --subnet-range 192.168.1.0/24 $1"_subnet"
+
+# Download image to environment
+wget http://download.cirros-cloud.net/0.3.5/cirros-0.3.5-x86_64-disk.img > $1.img

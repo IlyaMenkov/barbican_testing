@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
 
-# Download image to environment
-wget http://download.cirros-cloud.net/0.3.5/cirros-0.3.5-x86_64-disk.img
-
-
 openssl genrsa -out private_key.pem 1024
 openssl req -new -key private_key.pem -out cert_request.csr
 openssl x509 -req -days 14 -in cert_request.csr -signkey private_key.pem -out new_cert.crt
@@ -18,4 +14,6 @@ base64 -w 0 myimage.signature > myimage.signature.b64
 
 image_signature=$(cat myimage.signature.b64)
 
-glance image-create --name mySignedImage --container-format bare --disk-format qcow2 --property img_signature="$image_signature" --property img_signature_certificate_uuid="$cert_uuid" --property img_signature_hash_method='SHA-256' --property img_signature_key_type='RSA-PSS' <  cirros-0.3.5-x86_64-disk.img
+glance image-create --name $1 --container-format bare --disk-format qcow2 --property img_signature="$image_signature" \
+ --property img_signature_certificate_uuid="$cert_uuid" --property img_signature_hash_method='SHA-256' \
+ --property img_signature_key_type='RSA-PSS' <  $1.img
