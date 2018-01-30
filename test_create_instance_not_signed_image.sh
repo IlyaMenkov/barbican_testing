@@ -2,6 +2,8 @@
 
 set -x
 
+resource_name='test_barbican'
+
 source /root/keystonercv3
 
 # Install DogTag formula
@@ -44,29 +46,36 @@ salt -C 'I@nova:compute' service.restart nova-compute
 # Check If Barbican works properly
 openstack secret store --name mysecret --payload j4=]d21
 
-# If private network doesn't exist create one
-network_id=`openstack network list | awk '/private/ || /internal/' |awk {'print $2'} | head -1`
+# Create network
+network_id=`openstack network create $resource_name"_net" | grep " id"| awk {'print $4'}`
+openstack subnet create --network $resource_name"_net" --subnet-range 192.168.1.0/24 $resource_name"_subnet"
 
-if [ -z  $network_id ]
-then
-  network_id=`openstack network create test_barbican_net | grep " id"| awk {'print $4'}`
-  openstack subnet create --network test_barbican_net --subnet-range 192.168.1.0/24 test_barbican_subnet
-fi
-
+# Create image
 wget http://download.cirros-cloud.net/0.3.5/cirros-0.3.5-x86_64-disk.img
-glance image-create --name test_barbican --visibility public --disk-format qcow2 \
+glance image-create --name $resource_name --visibility public --disk-format qcow2 \
   --container-format bare --file cirros-0.3.5-x86_64-disk.img --progress
 
-openstack flavor create flavor --ram 512 --disk 1 --vcpus 1
+# Create flavor
+openstack flavor create $resource_name --ram 512 --disk 1 --vcpus 1
+
 # Boot instance
-nova boot --flavor flavor --image test_barbican --nic net-id=$network_id test_barbican
+nova boot --flavor $resource_name --image $resource_name --nic net-id=$network_id $resource_name
 
 # Check that instance in ERROR state
 check_error_state=`nova list | awk '/test/ && /ERROR/'`
-if [ -z  check_error_state ]
+check_error_log=`grep -irn "SignatureVerificationError: Signature verification for the image failed:" \
+/var/log/nova/nova-compute.log`
+
+if [[ -z "$check_error_state" || -z "$check_error_log" ]]
 then
   echo "Test FAILED"
 else
   echo "Test PASSED"
 fi
 
+# Clean Up
+openstack flavor delete $resource_name
+openstack image delete $resource_name
+openstack server delete $resource_name
+openstack network delete $network_id
+rm cirros-0.3.5-x86_64-disk.img
