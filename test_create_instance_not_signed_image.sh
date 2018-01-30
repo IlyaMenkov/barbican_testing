@@ -46,7 +46,7 @@ echo $?
 # If private network doesn't exist create one
 network_id=`openstack network list | awk '/private/ || /internal/' |awk {'print $2'} | head -1`
 
-if [ -z  $network_id ];
+if [ -z  $network_id ]
 then
   network_id=`openstack network create internal_net | grep " id"| awk {'print $4'}`
   openstack subnet create --network internal_net --subnet-range 192.168.1.0/24 internal_subnet
@@ -59,4 +59,13 @@ glance image-create --name cirros --visibility public --disk-format qcow2 \
   --container-format bare --file cirros-0.3.5-x86_64-disk.img --progress
 
 # Boot instance
-nova boot --flavor m1.extra_tiny --image cirros --nic net-id=d23f9845-cbce-47a6-be15-0603f6a31365 test
+nova boot --flavor m1.extra_tiny --image cirros --nic net-id=d23f9845-cbce-47a6-be15-0603f6a31365 test_barbican
+
+# Check that instance in ERROR state
+check_error_state=`nova list | awk '/test/ && /ERROR/'`
+if [ -z  check_error_state ]
+then
+  echo "Instance was created, Test FAILED"
+else
+  echo "Instance in ERROR state as expected, Test PASSED"
+fi
